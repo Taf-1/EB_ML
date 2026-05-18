@@ -2,7 +2,7 @@ import numpy as np
 import logging
 
 class binning:
-    def __init__(self, logger: logging.Logger, x: list, y: list, bin_fact: int):
+    def __init__(self, logger: logging.Logger, x: np.ndarray, y: np.ndarray, bin_fact: int):
         self.logger = logger
         self.x = x
         self.y = y
@@ -46,12 +46,12 @@ class binning:
         self.logger.info("Starting phase binning of light curve")
         if len(self.x) <= (len(self.bin_fact) - 1):
             self.logger.info("Not enough data points to bin with the specified bin factor.")
-            binfact = len(self.x)
-        n_binned = int(len(self.x) / binfact)
-        binned_len = int(n_binned * binfact)
+            return self.x, self.y
+        n_binned = int(len(self.x) / self.bin_fact)
+        binned_len = int(n_binned * self.bin_fact)
         temp = sorted(zip(self.x[:binned_len], self.y[:binned_len]))
         phase_s, flux_s = map(np.array, zip(*temp))
-        phase_bin = np.average(phase_s.reshape(n_binned, binfact), axis=1)
-        flux_bin = np.average(flux_s.reshape(n_binned, binfact), axis=1)
-        self.logger.info(f"Completed phase binning into {n_binned} bins with bin factor {binfact}")
+        phase_bin = np.average(phase_s.reshape(n_binned, self.bin_fact), axis=1)
+        flux_bin = np.average(flux_s.reshape(n_binned, self.bin_fact), axis=1)
+        self.logger.info(f"Completed phase binning into {n_binned} bins with bin factor {self.bin_fact}")
         return phase_bin, flux_bin

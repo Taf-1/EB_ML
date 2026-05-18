@@ -9,20 +9,18 @@ class Stack_LCS:
         self.input_dir = input_dir
         self.output_file = output_file
 
-    def stack_light_curves(self):
+    def stack_light_curves(self) -> None:
         all_files = [f for f in os.listdir(self.input_dir) if f.endswith('.fits')]
         stacked_table = None
-
+        self.logger.info(f"Found {len(all_files)} light curve files to stack in {self.input_dir}")
         for file in tqdm(all_files, desc="Stacking light curves"):
             file_path = os.path.join(self.input_dir, file)
             with fits.open(file_path) as hdul:
                 data = hdul[1].data
                 table = Table(data)
-
                 if stacked_table is None:
                     stacked_table = table
                 else:
                     stacked_table = vstack([stacked_table, table])
-
         self.logger.info(f"Stacking completed. Saving results to {self.output_file}")
         stacked_table.write(self.output_file, format='fits', overwrite=True)

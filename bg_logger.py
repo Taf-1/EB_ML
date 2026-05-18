@@ -9,13 +9,10 @@ class sf_logging:
 
     def setup_logger(self) -> logging.Logger:
         Path(self.log_file).parent.mkdir(parents=True, exist_ok=True)
-
         logger = logging.getLogger(self.stage_name)
         logger.setLevel(logging.INFO)
-
         if logger.handlers:
             return logger
-
         formatter = logging.Formatter(
             "%(asctime)s | %(name)s | %(levelname)s | %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"
@@ -26,7 +23,6 @@ class sf_logging:
         file_handler.setFormatter(formatter)
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(formatter)
-
         logger.addHandler(file_handler)
         logger.addHandler(console_handler)
         return logger
