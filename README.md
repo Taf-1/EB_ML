@@ -1,4 +1,4 @@
-# lcurve_analysis
+# BlackGEM_ML
 
 A Python pipeline for extracting light curves from variable systems in BlackGEM, conducting analysis using BLS and Lomb-Scargle methods, and incorporating machine learning techniques to help identify white dwarf eclipsing binary systems
 
