@@ -2,7 +2,7 @@
 
 A Python pipeline for extracting light curves from variable systems in BlackGEM, conducting analysis using BLS and Lomb-Scargle methods, and incorporating machine learning techniques to help identify white dwarf eclipsing binary systems
 
-## Pipeline overview -> Comming Soon
+## Pipeline overview -> Coming Soon
 
 ```
 ```
@@ -28,7 +28,7 @@ source ENV_NAME/bin/activate
 pip install -r requirements.txt
 ```
 
-## Usage -> Comming Soon 
+## Usage -> Coming Soon 
 
 ```bash
 
@@ -40,7 +40,7 @@ Run a subset of stages:
 
 ```
 
-### Configuration -> Comming Soon
+### Configuration -> Coming Soon
 
 ```
 ```
@@ -56,7 +56,7 @@ Run a subset of stages:
 | `bg_tess_followup.py` | Query TESS db using Gaia ID to get LCs |
 | `bg_bins.py` | LC editing via binning data |
 
-## Output files (per target) -> Comming Soon
+## Output files (per target) -> Coming Soon
 
 | File | Description |
 |---|---|
