@@ -2,7 +2,7 @@ import logging
 import logging.handlers
 from pathlib import Path 
 
-class sf_logging:
+class BG_logging:
     def __init__(self, stage_name: str, log_file: str): 
         self.stage_name = stage_name
         self.log_file = log_file
