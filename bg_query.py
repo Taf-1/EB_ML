@@ -15,6 +15,8 @@ class Google_Cloud_query:
         query = f"SELECT * FROM `{self.table_loc}`"
         self.logger.info(f"Running query: {query}")
         query_job = client.query(query).to_dataframe()
+        self.logger.info(f"Query returned {len(query_job)} rows. Dropping 'DATE_OBS' column if it exists.")
+        query_job = query_job.drop(columns=['DATE_OBS'])
         self.logger.info(f"Query completed. Saving results to {self.output}")
         table = Table.from_pandas(query_job)
         table.write(self.output, format='fits', overwrite=True)
