@@ -41,18 +41,22 @@ def main():
     wd_table = cfg["wd_table"]
     hr_table = cfg["hr_table"]
     logger = bg_logger.BG_logging(stage_name="BG_pipeline", log_file=os.path.join(data_root, "logs/bg_pipeline.log")).setup_logger()
-    bg_query.Google_Cloud_query(logger, variable_table_loc, project_id, os.path.join(data_root, "variable_table.fits")).run_query()
-    bg_stack_lcs.Stack_LCS(logger, os.path.join(data_root, "variable_table.fits")).stack_light_curves()
+    """bg_query.Google_Cloud_query(logger, variable_table_loc, project_id, os.path.join(data_root, "variable_table.fits")).run_query()"""
+    """bg_stack_lcs.Stack_LCS(logger, os.path.join(data_root, "variable_table.fits"), data_root=data_root).stack_light_curves()"""
     wd_files = [os.path.join(data_root, "lightcurves", f) for f in os.listdir(os.path.join(data_root, "lightcurves")) if f.endswith("_LC.fits")]
+    wd_analysis_dir = f"{data_root}/analysis/"
+    if not os.path.exists(wd_analysis_dir):
+        logger.info(f"Creating directory for analysis results: {wd_analysis_dir}")
+        os.mkdir(wd_analysis_dir)
     per_wd_results = []
     for wd_file in wd_files:
         logger.info(f"Processing light curve file: {wd_file}")
         wd_name = os.path.basename(wd_file).replace("_LC.fits", "")
-        wd_dir = os.path.join(data_root, "analysis", wd_name)
+        wd_dir = os.path.join(wd_analysis_dir, wd_name)
         logger.info(f"Creating directory for analysis of {wd_name}: {wd_dir}")
         if not os.path.exists(wd_dir):
             logger.info(f"Directory {wd_dir} does not exist. Creating it now.")
-            os.makedirs(wd_dir)
+            os.mkdir(wd_dir)
         os.chdir(wd_dir)
         logger.info(f"Reading light curve data from {wd_file}")
         with fits.open(wd_file) as hdul:
@@ -94,19 +98,24 @@ def main():
             logger.info(f"BLS period search complete - BLS params dict includes - {bls_params}")
             logger.info("Second stage: Running the Lomb Scargle period search")
             ls_params = analysis_initialise.run_lomb_scargle()
+            if len(ls_params) == 0:
+                logger.info("Lomb-Scargle params dict is empty due to invalid minimum frequency. Skipping to next filter.")
+                continue
             logger.info(f"Lomb Scargle period search complete - LS params dict includes - {ls_params}")
             BG_output_filename = f"{wd_name}_BG.png"
             TESS_output_filename = f"{wd_name}_TESS.png"
             logger.info(f"Period search completed - creating the diagnostic plots - {BG_output_filename}")
+            with fits.open(wd_table) as fs:
+                nic_data = fs[1].data
             bg_plotting.diagnostic_plotting(logger=logger, gcs_files=gcs_files, ra_deg=ra_deg, dec_deg=dec_deg,
                         time=time, flux=ratio_norm, dss_data=dss_data, bls_params=bls_params,
-                        ls_params=ls_params, nic_data=wd_table, gaia_id=gaia_id, 
+                        ls_params=ls_params, nic_data=nic_data, gaia_id=gaia_id, 
                         output_filename=BG_output_filename, telescope='BG', hr_table=hr_table).bg_diagnostic_plot()
             """Will add TESS followup later on - for now just create the BG diagnostic plot and save the BLS and LS params to a csv file for ML"""
             """logger.info(f"Period search completed - creating the diagnostic plots - {TESS_output_filename}")
             bg_plotting.diagnostic_plotting(logger=logger, gcs_files=gcs_files, ra_deg=ra_deg, dec_deg=dec_deg,
                         time=time, flux=ratio_norm, dss_data=dss_data, bls_params=bls_params,
-                        ls_params=ls_params, nic_data=wd_table, gaia_id=gaia_id, 
+                        ls_params=ls_params, nic_data=nic_data, gaia_id=gaia_id, 
                         output_filename=TESS_output_filename, telescope='TESS', hr_table=hr_table).bg_diagnostic_plot()"""
             logger.info(f"Diagnostic plots created for filter {filt} of Gaia ID {gaia_id} - now saving the BLS and LS params to a dictionary for ML")
             per_filter_data[filt] = {

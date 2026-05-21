@@ -6,16 +6,17 @@ from astropy.table import Table, vstack
 import logging
 
 class Stack_LCS:
-    def __init__(self, logger: logging.Logger, variable_table: str):
+    def __init__(self, logger: logging.Logger, variable_table: str, data_root: str):
         self.var_table = variable_table
         self.logger = logger
+        self.data_root = data_root
 
     def stack_light_curves(self) -> None:
         self.logger.info("Starting to stack light curves from variable table")
-        lc_folder = "../lightcurves/"
+        lc_folder = f"{self.data_root}/lightcurves/"
         if not os.path.exists(lc_folder):
             self.logger.info(f"Creating directory for light curve files: {lc_folder}")
-            os.makedirs(lc_folder)
+            os.mkdir(lc_folder)
         self.logger.info(f"Reading variable table from {self.var_table}")
         with fits.open(self.var_table) as hdul:
             wd_table = Table(hdul[1].data)

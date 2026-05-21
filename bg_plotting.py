@@ -139,7 +139,7 @@ class diagnostic_plotting:
         self.ra_deg = ra_deg
         self.dec_deg = dec_deg
         self.time = time
-        self.ratio_norm = flux
+        self.flux = flux
         self.dss_data = dss_data
         self.bls_params = bls_params
         self.ls_params = ls_params
@@ -156,6 +156,8 @@ class diagnostic_plotting:
             MG = self.nic_data['absG'][target_location]
             bprp = self.nic_data['bp_rp'][target_location]
             g_apparent = self.nic_data["phot_g_mean_mag"][target_location][0]
+        else:
+            MG, bprp, g_apparent = None, None, None
         self.logger.info("Setting up the diagnostic plot layout...")
         layout = """
                 AAAB
@@ -196,7 +198,7 @@ class diagnostic_plotting:
         ax['E'].axvline(1.0/self.ls_params["frequency_max_l2"], lw=2, ls="--", color="red", zorder=0)
         ax['E'].set_xlabel("Period (d)")
         ax['E'].legend()
-        self.lofger.info("Plotting the DSS image...")
+        self.logger.info("Plotting the DSS image...")
         if len(self.dss_data) <= 1:
             ax['F'].axis('off')
         else:

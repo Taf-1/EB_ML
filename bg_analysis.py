@@ -60,9 +60,12 @@ class BG_analysis:
         self.logger.info("Performing Lomb-Scargle analysis on the light curve")
         ls_max_freq = 1.0/(5.0/60/24)
         ls_min_freq = 1.0/((max(self.time) - min(self.time)))
+        if np.isnan(ls_min_freq) or np.isinf(ls_min_freq):
+            self.logger.info("Calculated Lomb-Scargle minimum frequency is invalid (NaN or Inf). Skipping to next target.")
+            return {}
         self.logger.info(f"Using Lomb-Scargle frequency range from {ls_min_freq:.5f} to {ls_max_freq:.5f} cycles/day")
         ls1 = LombScargle(self.time, self.flux)
-        self.logger.infio("Running Lomb-Scargle with nterms=1") 
+        self.logger.info("Running Lomb-Scargle with nterms=1") 
         try:
             frequency_l1, power_l1 = ls1.autopower(minimum_frequency=ls_min_freq,
                                                 maximum_frequency=ls_max_freq,
