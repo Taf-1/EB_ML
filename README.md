@@ -5,17 +5,17 @@ A Python pipeline for extracting light curves from variable systems observed by 
 ## Pipeline overview
 
 ```
-bg_query.py  →  bg_stack_lcs.py  →  bg_lc_flagging.py  →  ml_features.csv  →  bg_ml.ipynb
-   (query)         (stack LCs)          (flag dips)         (feature table)      (cluster)
+lightcurves/*.fits  →  bg_main.py  →  bg_lc_flagging.py  →  ml_features.csv  →  bg_ml.ipynb
+   (input FITS)        (orchestrate)     (flag dips)          (feature table)      (cluster)
 ```
 
 | Stage | Script | Purpose |
 |---|---|---|
-| 1 | `bg_query.py` | Query BlackGEM Google Cloud BigQuery for variable source detections and image paths |
-| 2 | `bg_stack_lcs.py` | Stack per-night FITS files into a single multi-night light curve per target |
-| 3 | `bg_lc_flagging.py` | Iterative sigma-clip dip detector; computes variability metrics per filter |
-| 4 | `bg_main.py` | Orchestrates stages 1–3, loops over all targets, writes `ml_features.csv` |
-| 5 | `bg_ml.ipynb` | Loads features, scales, tunes K-Means (elbow + silhouette), produces cluster plots |
+| 1 | `bg_main.py` | Reads all `*_LC.fits` files, normalises flux per filter, calls dip-flagging, writes `ml_features.csv` |
+| 2 | `bg_lc_flagging.py` | Iterative sigma-clip dip detector; computes variability metrics per filter |
+| 3 | `bg_ml.ipynb` | Loads features, scales, tunes K-Means (elbow + silhouette), produces cluster plots |
+
+> `bg_query.py` (BigQuery interface) is present but its call in `bg_main.py` is currently disabled pending cloud auth setup.
 
 ## Requirements
 
@@ -46,10 +46,6 @@ Copy `example_config.ini` and fill in the paths for your environment:
 data_root          = /path/to/data/root
 project_id         = your-gcp-project-id
 variable_table_loc = dataset.variable_table
-bg_detections_table = dataset.detections
-bg_images_table    = dataset.images
-wd_table           = /path/to/WD/catalogue.fits
-hr_table           = /path/to/HR/catalogue.fits
 ```
 
 `data_root` must contain a `lightcurves/` subdirectory with `*_LC.fits` files. The pipeline creates an `analysis/` subdirectory and writes `ml_features.csv` and `logs/` there.
