@@ -2,17 +2,13 @@ import bg_query
 import bg_tess_followup
 import bg_stack_lcs
 import bg_bins
-import bg_analysis
+import bg_lc_flagging
 import bg_logger
-import bg_plotting
 import argparse
 import configparser
 import os
 from astropy.io import fits
 import numpy as np
-from astropy.coordinates import SkyCoord
-from astroquery.skyview import SkyView
-import astropy.units as u
 import pandas as pd
 from tqdm import tqdm
 
@@ -39,8 +35,6 @@ def main():
     project_id = cfg["project_id"]
     bg_detections_table = cfg["bg_detections_table"]
     bg_images_table = cfg["bg_images_table"]
-    wd_table = cfg["wd_table"]
-    hr_table = cfg["hr_table"]
     logger = bg_logger.BG_logging(stage_name="BG_pipeline", log_file=os.path.join(data_root, "logs/bg_pipeline.log")).setup_logger()
     """bg_query.Google_Cloud_query(logger, variable_table_loc, project_id, os.path.join(data_root, "variable_table.fits")).run_query()"""
     """bg_stack_lcs.Stack_LCS(logger, os.path.join(data_root, "variable_table.fits"), data_root=data_root).stack_light_curves()"""
@@ -70,15 +64,6 @@ def main():
         gcs_files = bg_query.BG_images(logger, bg_detections_table, bg_images_table, gaia_id, filters[0]).query_bg_database()
         gcs_files = gcs_files[:5]
         logger.info("Extracted the first 5 gcs files from the BlackGEM google cloud")
-        logger.info(f"Querying the sky coordinates: RA - {ra_deg} DEC - {dec_deg}")
-        target_sky_coords = SkyCoord(ra=ra_deg, dec=dec_deg, frame='icrs', unit="deg")
-        logger.info("Queried the coordinates - now using SkyView to get the DSS images for thumbnail")
-        dss_image = SkyView.get_images(position=target_sky_coords, survey=['DSS2 Red'], radius=50*u.arcsec)
-        if len(dss_image) == 0:
-            logger.info("No images were found for DSS red - trying DSS instead")
-            dss_image = SkyView.get_images(position=target_sky_coords, survey=['DSS'], radius=50*u.arcsec)
-        logger.info("DSS images collected - transforming to data to be used later on ...")
-        dss_data = dss_image[0][0].data if len(dss_image) > 0 else None
         per_filter_data = {}
         for filt in filters:
             logger.info(f"Processing filter {filt} for Gaia ID {gaia_id}")
@@ -87,70 +72,57 @@ def main():
             flux = lc_table["FNU_OPT"][mask]
             logger.info(f"Extracted {len(time)} data points for filter {filt} of Gaia ID {gaia_id}")
             logger.info("Normalizing the flux ...")
-            ratio = flux / np.median(flux)
-            ratio = ratio[~np.isnan(ratio)]
-            ratio_norm = ratio / np.median(ratio)
-            logger.info(f"Flux has been normalized - max flux - {max(ratio_norm)} min flux - {min(ratio_norm)}")
-            logger.info("Ready to conduct the period search using BLS and LS algorithms")
-            results_filename = f"{wd_name}_{filt}_res.txt"
-            analysis_initialise = bg_analysis.BG_analysis(logger=logger, time=time, flux=ratio_norm, filename=results_filename)
-            logger.info("Initialised the BG_analysis - first stage: Running the BLS period search")
-            bls_params = analysis_initialise.run_bls()
-            logger.info(f"BLS period search complete - BLS params dict includes - {bls_params}")
-            logger.info("Second stage: Running the Lomb Scargle period search")
-            ls_params = analysis_initialise.run_lomb_scargle()
-            if len(ls_params) == 0:
-                logger.info("Lomb-Scargle params dict is empty due to invalid minimum frequency. Skipping to next filter.")
-                continue
-            logger.info(f"Lomb Scargle period search complete - LS params dict includes - {ls_params}")
-            BG_output_filename = f"{wd_name}_BG.png"
-            TESS_output_filename = f"{wd_name}_TESS.png"
-            logger.info(f"Period search completed - creating the diagnostic plots - {BG_output_filename}")
-            with fits.open(wd_table) as fs:
-                nic_data = fs[1].data
-            bg_plotting.diagnostic_plotting(logger=logger, gcs_files=gcs_files, ra_deg=ra_deg, dec_deg=dec_deg,
-                        time=time, flux=ratio_norm, dss_data=dss_data, bls_params=bls_params,
-                        ls_params=ls_params, nic_data=nic_data, gaia_id=gaia_id, 
-                        output_filename=BG_output_filename, telescope='BG', hr_table=hr_table).bg_diagnostic_plot()
-            """Will add TESS followup later on - for now just create the BG diagnostic plot and save the BLS and LS params to a csv file for ML"""
-            """logger.info(f"Period search completed - creating the diagnostic plots - {TESS_output_filename}")
-            bg_plotting.diagnostic_plotting(logger=logger, gcs_files=gcs_files, ra_deg=ra_deg, dec_deg=dec_deg,
-                        time=time, flux=ratio_norm, dss_data=dss_data, bls_params=bls_params,
-                        ls_params=ls_params, nic_data=nic_data, gaia_id=gaia_id, 
-                        output_filename=TESS_output_filename, telescope='TESS', hr_table=hr_table).bg_diagnostic_plot()"""
-            logger.info(f"Diagnostic plots created for filter {filt} of Gaia ID {gaia_id} - now saving the BLS and LS params to a dictionary for ML")
+            flux_err_raw = lc_table["FNU_OPT_ERR"][mask] if "FNU_OPT_ERR" in lc_table.names else np.zeros_like(flux)
+            valid = np.isfinite(flux) & (flux > 0)
+            time_v = time[valid]
+            flux_v = flux[valid]
+            flux_err_v = flux_err_raw[valid]
+            med_flux = np.median(flux_v)
+            flux_norm = flux_v / med_flux
+            flux_err_norm = flux_err_v / med_flux
+            exp_time = float(np.median(np.diff(np.sort(time_v)))) if len(time_v) > 1 else 1.0 / 1440.0
+            logger.info(f"Flux normalized - max={max(flux_norm):.4f} min={min(flux_norm):.4f}, exp_time={exp_time:.6f} days")
+            logger.info("Running light curve flagging (dip detection) ...")
+            flag_filename = f"{wd_name}_{filt}_flags"
+            flag_result = bg_lc_flagging.lc_flagging(
+                logger=logger, time=time_v, exp_time=exp_time,
+                flux=flux_norm, flux_err=flux_err_norm,
+                filename=flag_filename
+            ).iterative_masking()
+            logger.info(f"Flagging complete - n_dips={flag_result['n_dips']}, score={flag_result['score']:.3f}")
+            logger.info(f"Flagging result for filter {filt} of Gaia ID {gaia_id} - now saving to dictionary for ML")
             per_filter_data[filt] = {
-                "bls_params": bls_params,
-                "ls_params": ls_params,
+                "flag_result": flag_result,
                 "gaia_id": gaia_id,
                 "filter": filt
             }
         logger.info(f"Completed processing for Gaia ID {gaia_id} - now appending the per filter data to the per WD results list")
         per_wd_results.append(per_filter_data)
-        """APPEND THE BLS_PARAMS, LS_PARAMS, GAIA_ID AND FILTER then save the total list to a csv file for ML"""
-    """Flatten per_wd_results into a ML-ready DataFrame of scalar features"""
     rows = []
     for wd in per_wd_results:
         for filt, data in wd.items():
-            bls = data["bls_params"]
-            ls = data["ls_params"]
-            results_b = bls["results_b"]
-            index_b = np.argmax(results_b.power)
+            res = data["flag_result"]
+            quality = res["quality"]
+            best_dip = max(res["dips"], key=lambda d: d["mf_snr"]) if res["dips"] else {}
             row = {
                 "gaia_id": data["gaia_id"],
                 "filter": filt,
-                "bls_period": float(bls["period_b"]),
-                "bls_sde": float(bls["sde_b"]),
-                "bls_power": float(results_b.power[index_b]),
-                "bls_depth": float(results_b.depth[index_b]),
-                "bls_duration": float(results_b.duration[index_b]),
-                "ls1_period": float(ls["period_l1"]),
-                "ls1_power": float(np.max(ls["power_l1"])),
-                "ls2_period": float(ls["period_l2"]),
-                "ls2_power": float(np.max(ls["power_l2"])),
-                "ls1_fap_10pct": float(ls["ls1_faps"][0]),
-                "ls1_fap_1pct": float(ls["ls1_faps"][1]),
-                "ls1_fap_01pct": float(ls["ls1_faps"][2]),
+                "baseline": res["baseline"],
+                "sigma": res["sigma"],
+                "n_dips": res["n_dips"],
+                "score": res["score"],
+                "survival_fraction": quality["survival_fraction"],
+                "n_high_cut": quality["n_high_cut"],
+                "p2p_over_mad": quality["p2p_over_mad"],
+                "duty_cycle": quality["duty_cycle"],
+                "spacing_frac_scatter": quality["spacing_frac_scatter"],
+                "consistent_spacings": int(quality["consistent_spacings"]),
+                "best_depth_flux": best_dip.get("depth_flux", np.nan),
+                "best_depth_frac": best_dip.get("depth_frac", np.nan),
+                "best_depth_sigma": best_dip.get("depth_sigma", np.nan),
+                "best_mf_snr": best_dip.get("mf_snr", np.nan),
+                "best_duration": best_dip.get("duration", np.nan),
+                "best_n_points": best_dip.get("n_points", np.nan),
             }
             rows.append(row)
     ml_df = pd.DataFrame(rows)
