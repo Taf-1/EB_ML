@@ -14,6 +14,7 @@ from astropy.coordinates import SkyCoord
 from astroquery.skyview import SkyView
 import astropy.units as u
 import pandas as pd
+from tqdm import tqdm
 
 def arg_parse() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the BG pipeline")
@@ -49,7 +50,7 @@ def main():
         logger.info(f"Creating directory for analysis results: {wd_analysis_dir}")
         os.mkdir(wd_analysis_dir)
     per_wd_results = []
-    for wd_file in wd_files:
+    for wd_file in tqdm(wd_files, desc="Processing light curve files for each WD", total=len(wd_files)):
         logger.info(f"Processing light curve file: {wd_file}")
         wd_name = os.path.basename(wd_file).replace("_LC.fits", "")
         wd_dir = os.path.join(wd_analysis_dir, wd_name)
@@ -127,12 +128,36 @@ def main():
         logger.info(f"Completed processing for Gaia ID {gaia_id} - now appending the per filter data to the per WD results list")
         per_wd_results.append(per_filter_data)
         """APPEND THE BLS_PARAMS, LS_PARAMS, GAIA_ID AND FILTER then save the total list to a csv file for ML"""
-    """save out the per_wd_results list to a csv file for ML"""
-    per_wd_results_filename = os.path.join(data_root, "per_wd_results.csv")
-    logger.info(f"Saving the per WD results to {per_wd_results_filename}")
-    per_wd_results_df = pd.DataFrame(per_wd_results)
-    per_wd_results_df.to_csv(per_wd_results_filename, index=False)
-    logger.info(f"Saved the per WD results to {per_wd_results_filename} - BG pipeline complete")
+    """Flatten per_wd_results into a ML-ready DataFrame of scalar features"""
+    rows = []
+    for wd in per_wd_results:
+        for filt, data in wd.items():
+            bls = data["bls_params"]
+            ls = data["ls_params"]
+            results_b = bls["results_b"]
+            index_b = np.argmax(results_b.power)
+            row = {
+                "gaia_id": data["gaia_id"],
+                "filter": filt,
+                "bls_period": float(bls["period_b"]),
+                "bls_sde": float(bls["sde_b"]),
+                "bls_power": float(results_b.power[index_b]),
+                "bls_depth": float(results_b.depth[index_b]),
+                "bls_duration": float(results_b.duration[index_b]),
+                "ls1_period": float(ls["period_l1"]),
+                "ls1_power": float(np.max(ls["power_l1"])),
+                "ls2_period": float(ls["period_l2"]),
+                "ls2_power": float(np.max(ls["power_l2"])),
+                "ls1_fap_10pct": float(ls["ls1_faps"][0]),
+                "ls1_fap_1pct": float(ls["ls1_faps"][1]),
+                "ls1_fap_01pct": float(ls["ls1_faps"][2]),
+            }
+            rows.append(row)
+    ml_df = pd.DataFrame(rows)
+    ml_features_filename = os.path.join(data_root, "ml_features.csv")
+    logger.info(f"Saving ML-ready features DataFrame to {ml_features_filename}")
+    ml_df.to_csv(ml_features_filename, index=False)
+    logger.info(f"Saved {len(ml_df)} rows to {ml_features_filename} - BG pipeline complete")
 
 if __name__ == "__main__":
     main()

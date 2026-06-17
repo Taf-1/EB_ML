@@ -15,6 +15,31 @@ from photutils.aperture import CircularAperture
 import gc
 from bg_bins import binning
 from astropy.io.votable import parse_single_table
+import matplotlib as mpl
+
+mpl.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+    "mathtext.fontset": "stix",
+    "font.size": 12,
+    "axes.labelsize": 13,
+    "axes.titlesize": 13,
+    "xtick.labelsize": 11,
+    "ytick.labelsize": 11,
+    "axes.linewidth": 1.2,
+    "lines.linewidth": 1.5,
+    "xtick.direction": "in",
+    "ytick.direction": "in",
+    "xtick.top": True,
+    "ytick.right": True,
+    "xtick.major.size": 5,
+    "ytick.major.size": 5,
+    "xtick.minor.size": 3,
+    "ytick.minor.size": 3,
+    "xtick.minor.visible": True,
+    "ytick.minor.visible": True,
+    "legend.frameon": False,
+})
 
 class thumbnails:
     def __init__(self, logger: logging.Logger, gcs_files: list, ra: float, dec: float, ax):
