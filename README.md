@@ -1,4 +1,4 @@
-# BlackGEM_ML
+# EB_ML
 
 A Python pipeline for extracting light curves from variable systems observed by BlackGEM, detecting photometric variability via dip-flagging, and applying unsupervised machine learning (K-Means clustering) to help identify candidate white dwarf eclipsing binary systems.
 
