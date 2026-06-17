@@ -1,17 +1,21 @@
 import logging
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 
 class lc_flagging:
     def __init__(self, logger: logging.Logger, time: list[float], exp_time: float,
-                 flux: list[float], flux_err: list[float], filename: str) -> None:
+                 flux: list[float], flux_err: list[float], filename: str,
+                 output_dir: str = ".") -> None:
         self.logger = logger
         self.time = np.asarray(time, dtype=float)
         self.exp_time = float(exp_time)
         self.flux = np.asarray(flux, dtype=float)
         self.flux_err = np.asarray(flux_err, dtype=float)
         self.filename = filename
+        self.output_dir = output_dir
 
         self.n_sigma = 3.0
         self.gap_tol = 1.5
@@ -68,7 +72,8 @@ class lc_flagging:
         fig.tight_layout()
 
         if save_path is None:
-            save_path = f"{self.filename}_flagged.png"
+            import os
+            save_path = os.path.join(self.output_dir, f"{self.filename}_flagged.png")
         fig.savefig(save_path, dpi=130)
         self.logger.info("%s: plot saved to %s", self.filename, save_path)
 

@@ -60,13 +60,8 @@ hr_table           = /path/to/HR/catalogue.fits
 |---|---|
 | `bg_main.py` | Top-level runner; reads config, loops over LC files, calls dip-flagging, writes `ml_features.csv` |
 | `bg_query.py` | BigQuery interface for the BlackGEM detections and images tables on Google Cloud |
-| `bg_stack_lcs.py` | Combines per-night BlackGEM observations into a multi-night FITS LC per target |
 | `bg_lc_flagging.py` | Iterative sigma-clip dip detector; returns variability metrics (score, n_dips, depth, SNR, etc.) |
-| `bg_analysis.py` | BLS and Lomb-Scargle period search utilities (retained for diagnostic use) |
-| `bg_plotting.py` | Diagnostic light curve plots, DSS thumbnail stamps, and TESS followup panels |
-| `bg_bins.py` | Light curve binning utilities |
 | `bg_logger.py` | Logging setup (rotating file handler + console) |
-| `bg_tess_followup.py` | TESS light curve retrieval via Lightkurve / MAST |
 | `bg_ml.ipynb` | K-Means clustering on `lc_flagging` features; elbow, silhouette, PCA, and scatter plots |
 
 ## Output files

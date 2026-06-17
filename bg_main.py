@@ -1,7 +1,3 @@
-import bg_query
-import bg_tess_followup
-import bg_stack_lcs
-import bg_bins
 import bg_lc_flagging
 import bg_logger
 import argparse
@@ -33,11 +29,8 @@ def main():
     data_root = cfg["data_root"]
     variable_table_loc = cfg["variable_table_loc"]
     project_id = cfg["project_id"]
-    bg_detections_table = cfg["bg_detections_table"]
-    bg_images_table = cfg["bg_images_table"]
     logger = bg_logger.BG_logging(stage_name="BG_pipeline", log_file=os.path.join(data_root, "logs/bg_pipeline.log")).setup_logger()
     """bg_query.Google_Cloud_query(logger, variable_table_loc, project_id, os.path.join(data_root, "variable_table.fits")).run_query()"""
-    """bg_stack_lcs.Stack_LCS(logger, os.path.join(data_root, "variable_table.fits"), data_root=data_root).stack_light_curves()"""
     wd_files = [os.path.join(data_root, "lightcurves", f) for f in os.listdir(os.path.join(data_root, "lightcurves")) if f.endswith("_LC.fits")]
     wd_analysis_dir = f"{data_root}/analysis/"
     if not os.path.exists(wd_analysis_dir):
@@ -52,7 +45,6 @@ def main():
         if not os.path.exists(wd_dir):
             logger.info(f"Directory {wd_dir} does not exist. Creating it now.")
             os.mkdir(wd_dir)
-        os.chdir(wd_dir)
         logger.info(f"Reading light curve data from {wd_file}")
         with fits.open(wd_file) as hdul:
             lc_table = hdul[1].data
@@ -61,9 +53,6 @@ def main():
         ra_deg = lc_table["ra"][0]
         dec_deg = lc_table["dec"][0]
         logger.info(f"Found Gaia ID {gaia_id} with RA {ra_deg} and Dec {dec_deg} in {wd_file}")
-        gcs_files = bg_query.BG_images(logger, bg_detections_table, bg_images_table, gaia_id, filters[0]).query_bg_database()
-        gcs_files = gcs_files[:5]
-        logger.info("Extracted the first 5 gcs files from the BlackGEM google cloud")
         per_filter_data = {}
         for filt in filters:
             logger.info(f"Processing filter {filt} for Gaia ID {gaia_id}")
@@ -87,7 +76,7 @@ def main():
             flag_result = bg_lc_flagging.lc_flagging(
                 logger=logger, time=time_v, exp_time=exp_time,
                 flux=flux_norm, flux_err=flux_err_norm,
-                filename=flag_filename
+                filename=flag_filename, output_dir=wd_dir
             ).iterative_masking()
             logger.info(f"Flagging complete - n_dips={flag_result['n_dips']}, score={flag_result['score']:.3f}")
             logger.info(f"Flagging result for filter {filt} of Gaia ID {gaia_id} - now saving to dictionary for ML")
